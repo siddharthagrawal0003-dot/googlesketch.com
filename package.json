@@ -1,0 +1,6 @@
+{
+  "name": "googlesketch",
+  "private": true,
+  "scripts": {"test": "node tests/collaboration.mjs"},
+  "devDependencies": {"miniflare": "4.20260730.0"}
+}

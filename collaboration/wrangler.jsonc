@@ -1,0 +1,9 @@
+{
+  "name": "googlesketch-collab",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {"bindings": [{"name": "ROOMS", "class_name": "SketchRoom"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["SketchRoom"]}],
+  "observability": {"enabled": true, "head_sampling_rate": 0.1, "redact_query_string": true}
+}
