@@ -24,6 +24,21 @@ try{
   send(host,{type:'ops',batch:'c',ops:[{type:'put',page:'p1',id:'third',svg:'<path d="M1 1L2 2"/>'}]});send(guest,{type:'ops',batch:'d',ops:[{type:'put',page:'p1',id:'fourth',svg:'<path d="M3 3L4 4"/>'}]});await wait(host,'ops');await wait(host,'ops');
   const resumed=await connect(room.id,room.guestToken,'resumed');assert.equal((await wait(resumed,'ready')).state.pages[0].objects.length,4);
   send(guest,{type:'ops',batch:'forbidden-page',ops:[{type:'page',page:'student-page'}]});assert.match((await wait(guest,'rejected')).message,/teacher/);
-  send(host,{type:'end'});assert.equal((await wait(guest,'ended')).type,'ended');const ended=await mf.dispatchFetch(`https://test/rooms/${room.id}/connect`,{headers:{Origin:origin,Upgrade:'websocket'}});assert.equal(ended.status,410);
-  console.log('PASS: origin restriction, role authentication, bidirectional updates, simultaneous objects, server-enforced editing permission, reconnect snapshot, teacher-only pages, session end.');
+  const assetCall=(action,body)=>mf.dispatchFetch(`https://test/rooms/${room.id}/${action}`,{method:'POST',headers:{Origin:origin},body:JSON.stringify(body)});
+  const image='data:image/png;base64,'+'A'.repeat(260000);
+  const uploaded=await assetCall('assets',{token:room.hostToken,data:image});assert.equal(uploaded.status,200);const asset=await uploaded.json();
+  assert.equal((await (await assetCall('asset',{token:room.guestToken,id:asset.id})).json()).data,image);
+  assert.equal((await assetCall('asset',{token:'0'.repeat(64),id:asset.id})).status,400);
+  const bg={type:'put',page:'p1',id:'pdf-background',svg:`<image data-background="true" href="sketch-asset:${asset.id}" width="780" height="1010"/>`};
+  send(host,{type:'ops',batch:'pdf-page',ops:[bg]});assert.equal((await wait(host,'ops')).ops[0].id,'pdf-background');
+  send(guest,{type:'ops',batch:'protect-pdf',ops:[{type:'delete',page:'p1',id:'pdf-background'}]});assert.match((await wait(guest,'rejected')).message,/background/);
+  const pdfJoin=await connect(room.id,room.guestToken,'pdf-reader');assert.match((await wait(pdfJoin,'ready')).state.pages[0].objects.find(o=>o.id==='pdf-background').svg,/sketch-asset:/);
+  send(host,{type:'editing',value:false});await wait(host,'editing');
+  assert.equal((await assetCall('assets',{token:room.guestToken,data:image})).status,400);
+  assert.equal((await assetCall('ops',{token:room.guestToken,ops:[{type:'page',page:'p2'}]})).status,400);
+  assert.equal((await assetCall('ops',{token:room.hostToken,ops:[{type:'page',page:'p2'}]})).status,200);
+  send(host,{type:'ops',batch:'focus-page',ops:[{type:'focus',page:'p2'}]});await wait(host,'ops');
+  send(host,{type:'sync'});assert.equal((await wait(host,'snapshot')).state.activePage,'p2');
+  send(host,{type:'end'});assert.equal((await wait(guest,'ended')).type,'ended');assert.equal((await assetCall('asset',{token:room.guestToken,id:asset.id})).status,400);const ended=await mf.dispatchFetch(`https://test/rooms/${room.id}/connect`,{headers:{Origin:origin,Upgrade:'websocket'}});assert.equal(ended.status,410);
+  console.log('PASS: origin restriction, role authentication, bidirectional updates, simultaneous objects, server-enforced editing permission, reconnect snapshot, teacher-only pages, session end, chunked PDF assets, authenticated page retrieval, PDF background protection, PDF reconnect and asset revocation.');
 }finally{await mf.dispose();}
