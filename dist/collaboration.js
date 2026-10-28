@@ -102,6 +102,7 @@
     }catch(error){if(c.base)display(c.base);toast(error.message);$s('sessionError').textContent=error.message;}
     finally{c.busy=false;updateDialog();drain();}
   };
+  const originalDelete=deletePage;deletePage=function(i){if(c.room){toast('Pages can’t be deleted during a live session. Leave or end the session first.');return;}originalDelete(i);};
   addPage=async function(){if(!c.room){originalAdd();return;}if(c.role!=='host'){toast('Your teacher manages shared pages.');return;}if(!canEdit())return;await save();pages.push('');page=pages.length-1;svg.innerHTML='';hist=[];future=[];await save();};
   renderPages=function(){
     originalRenderPages();
